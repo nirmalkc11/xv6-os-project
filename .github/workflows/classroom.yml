@@ -2,5 +2,35 @@ name: Autograde P1
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  call-grader:
-    uses: University-of-Texas-at-Arlington/cse3320-grader/.github/workflows/reusable-grade.yml@v1
+  grade:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain (riscv)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            qemu-system-x86 \
+            gcc \
+            make \
+            python3-pip
+          pip3 install pexpect
+
+      - name: Build
+        run: |
+          make clean || true
+          make -j"$(nproc)"
+
+      - name: Grade
+        run: |
+          python3 ./.github/grade_proj1.py --timeout 120
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grade-report
+          path: grade-report/*
