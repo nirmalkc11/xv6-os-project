@@ -17,27 +17,32 @@ int main(int argc, char *argv[])
     char buf[MAXLINE];
     int i;
     int n;
-    printf(1, SH_PROMPT);  /* print prompt (printf requires %% to print %) */
 
-    while ( (n = read(0, buf, MAXLINE)) != 0) 
+    while (1)
     {
-        if (n == 1)                           /* no input at all, we should skip */
-        {
-            printf(1, SH_PROMPT);
+        printf(1, SH_PROMPT);  // print the prompt before each command
+
+        n = read(0, buf, MAXLINE);
+        if (n == 0)
+            break;  // EOF -> exit shell
+
+        if (n == 1)  // only newline entered
             continue;
-        }
-        buf[i = (strlen(buf) - 1)] = 0;       /* replace newline with null */
+
+        buf[i = (strlen(buf) - 1)] = 0;  // replace newline with null
 
         process_one_cmd(buf);
 
+        // Wait for all foreground children to finish
         while (wait() > 0)
             ;
-      
+
         memset(buf, 0, sizeof(buf));
     }
-    
+
     exit();
 }
+
 
 int exit_check(char **tok, int num_tok)
 {
