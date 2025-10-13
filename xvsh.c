@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
         n = read(0, buf, MAXLINE);
         if (n == 0)
-            break;  // EOF -> exit shell
+            break;  // exit shell
 
         if (n == 1)  // only newline entered
             continue;
