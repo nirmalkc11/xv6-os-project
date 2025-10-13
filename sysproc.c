@@ -100,3 +100,10 @@ int sys_enable_sched_trace(void)
 
   return 0;
 }
+
+int sys_shutdown(void)
+{
+    outw(0xB004, 0x0 | 0x2000);
+    outw(0x604,  0x0 | 0x2000);
+    return 0;
+}

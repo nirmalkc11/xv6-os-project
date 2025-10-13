@@ -41,13 +41,51 @@ int main(int argc, char *argv[])
 int exit_check(char **tok, int num_tok)
 {
     // your implementation here
+    if (tok[0] == 0)
+        return 0;
+
+    // Check if the first token is "exit"
+    if (strcmp(tok[0], "exit") == 0)
+        return 1;
     return 0;
 }
 
 int process_normal(char **tok, int bg)
 {
     // your implementation here
-    // note that exec(*tok, tok) is the right way to invoke exec in xv6
+    // I tried to do it on my own with the help of stackoverflow but i dint work, so i took the help of chatGPT
+    
+    int pid;
+
+    pid = fork();
+
+    if (pid < 0) {
+        printf(1, "Fork failed\n");
+        return -1;
+    }
+
+    if (pid == 0) {
+        // Child process executes the command
+        if (exec(tok[0], tok) < 0) {
+            printf(1, "Cannot run this command %s\n", tok[0]);
+            exit();  // terminate child on error
+        }
+    } else {
+        // Parent process
+        if (bg == 0) {
+            // Foreground process: wait for it to finish
+            wait();
+        } else {
+            // Background process: do NOT wait
+            printf(1, "[pid %d] runs as a background process\n", pid);
+        }
+    }
+
+    // Cleanup finished background processes (avoid zombies)
+    int ret;
+    while ((ret = wait()) > 0)
+        ;  // non-blocking cleanup of finished children
+
     return 0;
 }
 
@@ -96,18 +134,127 @@ int process_one_cmd(char* buf)
     /*Check buid-in exit command */
     if (exit_check(tok, num_tok))
     {
-        /*some code here to wait till all children exit() before exit*/
-	// your implementation here
-        exit();
+        
+       exit();
+        
     }
 
     // your code to check NOT implemented cases
-    
-    /* to process one command */
-    process_normal(tok, bg);
+    /*Check built-in exit command */
+if (exit_check(tok, num_tok))
+{
+    // Wait for all children (including background ones)
+    while (wait() > 0)
+        ;
+
+    exit();
+}
+
+
+// Check for pipe '|'
+int pipe_index = -1;
+for (i = 0; tok[i]; i++) {
+    if (strcmp(tok[i], "|") == 0) {
+        pipe_index = i;
+        break;
+    }
+}
+
+if (pipe_index != -1) {
+    // Split the tokens into left and right commands
+    tok[pipe_index] = 0; // break the command into two parts
+    char **left_cmd = tok;
+    char **right_cmd = &tok[pipe_index + 1];
+
+    int p[2];
+    pipe(p);
+
+    int pid1 = fork();
+    if (pid1 == 0) {
+        // Child 1: left command (write side)
+        close(1);       // close stdout
+        dup(p[1]);      // replace stdout with write end
+        close(p[0]);
+        close(p[1]);
+        if (exec(left_cmd[0], left_cmd) < 0) {
+            printf(1, "Cannot run this command %s\n", left_cmd[0]);
+            exit();
+        }
+    }
+
+    int pid2 = fork();
+    if (pid2 == 0) {
+        // Child 2: right command (read side)
+        close(0);       // close stdin
+        dup(p[0]);      // replace stdin with read end
+        close(p[0]);
+        close(p[1]);
+        if (exec(right_cmd[0], right_cmd) < 0) {
+            printf(1, "Cannot run this command %s\n", right_cmd[0]);
+            exit();
+        }
+    }
+
+    // Parent process
+    close(p[0]);
+    close(p[1]);
+    wait();
+    wait();
 
     free(tok);
     return 0;
+}
+
+
+// Check for output redirection '>'
+int redir_index = -1;
+for (i = 0; tok[i]; i++) {
+    if (strcmp(tok[i], ">") == 0) {
+        redir_index = i;
+        break;
+    }
+}
+
+if (redir_index != -1) {
+    // Separate command and filename
+    tok[redir_index] = 0;
+    char *outfile = tok[redir_index + 1];
+
+    if (outfile == 0) {
+        printf(1, "No output file specified\n");
+        free(tok);
+        return 0;
+    }
+
+    int pid = fork();
+    if (pid == 0) {
+        // Child: redirect stdout to file
+        int fd = open(outfile, O_CREATE | O_WRONLY);
+        if (fd < 0) {
+            printf(1, "Cannot open %s\n", outfile);
+            exit();
+        }
+        close(1);   // close stdout
+        dup(fd);    // duplicate file descriptor to stdout
+        close(fd);  // close original fd
+
+        if (exec(tok[0], tok) < 0) {
+            printf(1, "Cannot run this command %s\n", tok[0]);
+            exit();
+        }
+    } else {
+        wait();  // parent waits for child
+    }
+
+    free(tok);
+    return 0;
+}
+
+// If no pipe or redirection, handle normal command
+process_normal(tok, bg);
+
+free(tok);
+return 0;
 }
 
 
@@ -142,7 +289,7 @@ cont:
     }
     tok = s - 1;
 
-    /*
+    /* I got this part from stackoverflow
      * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
      * Note that delim must have one NUL; we stop if we see that, too.
      */

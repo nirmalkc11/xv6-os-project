@@ -21,4 +21,4 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_enable_sched_trace  22
-
+#define SYS_shutdown  23
