@@ -29,8 +29,9 @@ int main(int argc, char *argv[])
         buf[i = (strlen(buf) - 1)] = 0;       /* replace newline with null */
 
         process_one_cmd(buf);
-        
-        printf(1, SH_PROMPT);
+
+        while (wait() > 0)
+            ;
       
         memset(buf, 0, sizeof(buf));
     }
@@ -52,39 +53,31 @@ int exit_check(char **tok, int num_tok)
 
 int process_normal(char **tok, int bg)
 {
-    // your implementation here
-    // I tried to do it on my own with the help of stackoverflow but i dint work, so i took the help of chatGPT
-    
-    int pid;
-
-    pid = fork();
+    int pid = fork();
 
     if (pid < 0) {
-        printf(1, "Fork failed\n");
+        printf(1, "fork failed\n");
         return -1;
     }
 
     if (pid == 0) {
-        // Child process executes the command
+        // Child runs the command
         if (exec(tok[0], tok) < 0) {
-            printf(1, "Cannot run this command %s\n", tok[0]);
-            exit();  // terminate child on error
+            printf(1, "Cannot run this command %s\n", tok[0] ? tok[0] : "");
+            exit();
         }
+        // not reached
     } else {
-        // Parent process
-        if (bg == 0) {
-            // Foreground process: wait for it to finish
-            wait();
-        } else {
-            // Background process: do NOT wait
+        // Parent (xvsh)
+        if (bg) {
+            // Background: do NOT wait; just report pid
             printf(1, "[pid %d] runs as a background process\n", pid);
+            printf(1, "xvsh> "); // do not call wait() here
+        } else {
+            // Foreground: wait for child to finish
+            wait();
         }
     }
-
-    // Cleanup finished background processes (avoid zombies)
-    int ret;
-    while ((ret = wait()) > 0)
-        ;  // non-blocking cleanup of finished children
 
     return 0;
 }
@@ -114,22 +107,22 @@ int process_one_cmd(char* buf)
     i = bg = 0;
     tok[i++] = strtok(buf, " ");
 
-    /* check special symbols */
-    while ((tok[i] = strtok(NULL, " "))) 
-    {
-        switch (*tok[i]) 
-        {
-            case '&':
-                bg = i;
-                tok[i] = NULL;
-                break;
+    
+     /* check special symbols (background &) */
+  bg = 0;
+  while ((tok[i] = strtok(NULL, " ")))
+  {
+    if (strcmp(tok[i], "&") == 0) {
+        bg = 1;
+        tok[i] = 0;   // terminate argv so exec doesn't see "&"
+        break;        // ignore anything after '&' (simple shell)
+     }
+     i++;
+   }
 
-            default:
-                // do nothing
-                break;
-        }   
-        i++;
-    }
+// ensure argv is null-terminated if no '&'
+tok[i] = 0;
+
 
     /*Check buid-in exit command */
     if (exit_check(tok, num_tok))
@@ -252,6 +245,9 @@ if (redir_index != -1) {
 
 // If no pipe or redirection, handle normal command
 process_normal(tok, bg);
+
+if (!bg)
+    printf(1, SH_PROMPT);
 
 free(tok);
 return 0;
