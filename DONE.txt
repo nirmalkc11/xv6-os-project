@@ -1,0 +1,14 @@
+Name: Nirmal K C
+UTA ID: 1002089417
+Github Repo: https://github.com/University-of-Texas-at-Arlington/cse3320-25fall-project-0-nirmalkc11.git
+Latest Commit SHA1: 61dfc6a1af9e08db7e65ebdb4e0b3302856dfb0f
+
+Status:
+- Section I: xvsh fully functional. Supports prompt, exec, &, exit (waits for bg), |, >. Verified using ls | wc, ls > test.txt, sleep-echo Hello &.
+- Section II: shutdown system call implemented; uprog_shut prints BYE~ and terminates QEMU properly.
+
+AI/Online tools Disclosure
+-I admit that I took help of online tools for coding. I used Stack Overflow for some references where i got stuck for hours and I also used ChatGPT for process_normal() and pipe/redirection implementation
+-Integration, debugging, and testing done independently by me.
+
+
