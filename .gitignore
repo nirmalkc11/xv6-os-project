@@ -19,3 +19,8 @@ entryother
 initcode
 vectors.S
 xv6.img
+.venv/
+venv/
+__pycache__/
+.vscode/
+.idea/
